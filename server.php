@@ -12,7 +12,7 @@ cors();
 // Set data directory to data if no one logged in
 // Otherwise to data/<username>
 $dir = "data";
-if ($_ENV["TODO_PER_USER_FOLDERS"] == 'TRUE') {
+if (isset($_ENV["TODO_PER_USER_FOLDERS"]) && $_ENV["TODO_PER_USER_FOLDERS"] == 'TRUE') {
 
   $dir = "data/".$_SERVER['PHP_AUTH_USER'];
   if (!file_exists($dir)) {
