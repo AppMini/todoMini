@@ -3,7 +3,7 @@
             [reagent.session :as session]
             [secretary.core :as secretary :include-macros true]
             [ajax.core :refer [ajax-request json-response-format url-request-format]]
-            [cljs.core.async :refer [<! chan put! timeout]]
+            [cljs.core.async :refer [<! chan put! close! timeout]]
             [goog.net.cookies]
             [goog.events :as events]
             [goog.history.EventType :as EventType])
@@ -163,6 +163,7 @@
                    :params {:timestamp (or timestamp 0)
                             :live_for (@server :poller-time)}
                    :response-format (json-response-format)
+                   :error-handler #(close! c)
                    :handler #(put! c %)})
     c))
 
@@ -177,7 +178,6 @@
                  :params {:filename (str fname ".txt")
                           :content text}
                  :response-format (json-response-format)
-                 ; TODO: handle result
                  :handler (fn [[ok result]]
                             (print "update-file result:" ok (clj->js result))
                             (when (and ok (not (nil? result)))
