@@ -9,7 +9,15 @@
 // enable cors
 cors();
 
+// Set data directory to data if no one logged in
+// Otherwise to data/<username>
 $dir = "data";
+if (isset($_ENV["TODO_PER_USER_FOLDERS"]) && $_ENV["TODO_PER_USER_FOLDERS"] == 'TRUE') {
+  $dir = "data/".$_SERVER['PHP_AUTH_USER'];
+  if (!file_exists($dir)) {
+    mkdir($dir, 0777);
+  }
+}
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
   if (isset($_POST["filename"])) {
@@ -128,9 +136,9 @@ function endsWith($string, $test) {
 // get precise file modification time (including milliseconds)
 // http://stackoverflow.com/a/20248406/2131094
 function filemtime_precise($path){
-    $dateUnix = shell_exec('stat --format "%y" \'' . $path . '\'');
+    $dateUnix = @shell_exec('stat --format "%y" \'' . $path . '\'');
     $date = explode(".", $dateUnix);
-    return (float)(filemtime($path).".".substr($date[1], 0, 8));
+    return (float)(filemtime($path).".".substr(isset($date[1]) ? $date[1] : "00000000", 0, 8));
 }
 
 function cors() {
