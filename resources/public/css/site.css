@@ -245,6 +245,11 @@ li.todo-line > span.edit-mode {
   color: silver;
 }
 
+.warn {
+  text-align: center;
+  font-weight: bold;
+}
+
 /*** loader animation ***/
 
 #loader > div {

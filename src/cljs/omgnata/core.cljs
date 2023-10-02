@@ -3,7 +3,7 @@
             [reagent.session :as session]
             [secretary.core :as secretary :include-macros true]
             [ajax.core :refer [ajax-request json-response-format url-request-format]]
-            [cljs.core.async :refer [<! chan put! close! timeout]]
+            [cljs.core.async :refer [<! chan put! timeout]]
             [goog.net.cookies]
             [goog.events :as events]
             [goog.history.EventType :as EventType])
@@ -163,7 +163,6 @@
                    :params {:timestamp (or timestamp 0)
                             :live_for (@server :poller-time)}
                    :response-format (json-response-format)
-                   :error-handler #(close! c)
                    :handler #(put! c %)})
     c))
 
@@ -211,10 +210,15 @@
             (js/console.log "Long-poller result:" (clj->js result))
             (let [new-wait (if @app-has-focus
                              (or (if (result :failure)
-                                   (do (js/console.log "Long-poller ignoring bad data.") nil)
+                                   (do (js/console.log "Long-poller ignoring bad data.")
+                                       ; set timestamp to zero to show the demo if the server sent a parse error
+                                       ; and hasn't yet had a successful response
+                                       (when (and (nil? @last-timestamp) (= (result :failure) :parse))
+                                         (reset! last-timestamp 0))
+                                       nil)
                                    (do (if (>= (result "timestamp") @last-timestamp)
                                          (do
-                                           (js/console.log "Long-poller new timestamp.")
+                                           (js/console.log "Long-poller new timestamp:" (result "timestamp"))
                                            (reset! last-timestamp (result "timestamp"))
                                            #_ (when (not ok)
                                              ; this happens with the poller timeout so we can't use it d'oh
@@ -411,7 +415,8 @@
          (when (and (= (count (@todos filename)) 0) (not @add-mode))
            [:div.message
             [:p "Use the pencil icon to add a list item."]])
-         [component-list-of-todos todos filename add-mode]]))))
+         [component-list-of-todos todos filename add-mode]
+         (when (= @last-timestamp 0) [:p.warn "No server connected."])]))))
 
 (defn lists-page [todos timestamps]
   (let [add-mode (atom false)
@@ -442,7 +447,8 @@
             (when (not @add-mode)
               [:li.message
                [:p "You don't have any TODO lists yet."]
-               [:p "You can create lists like 'Shopping' or 'Work' using the pencil icon."]]))]]))))
+               [:p "You can create lists like 'Shopping' or 'Work' using the pencil icon."]]))]
+         (when (= @last-timestamp 0) [:p.warn "No server connected."])]))))
 
 (defn current-page []
   [:div [(session/get :current-page)]])
