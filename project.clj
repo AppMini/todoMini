@@ -15,7 +15,7 @@
                  [compojure "1.4.0"]
                  [hiccup "1.0.5"]
                  [environ "1.0.2"]
-                 [org.clojure/clojurescript "1.7.228"
+                 [org.clojure/clojurescript "1.11.60"
                   :scope "provided"]
                  [secretary "1.2.3"]
                  [venantius/accountant "0.1.6"
@@ -23,7 +23,7 @@
                  [cljs-ajax "0.3.14"]]
 
   :plugins [[lein-environ "1.0.2"]
-            [lein-cljsbuild "1.1.1"]
+            [lein-cljsbuild "1.1.8"]
             [lein-asset-minifier "0.2.7"
              :exclusions [org.clojure/clojure]]]
 
