@@ -2,8 +2,8 @@
   (:require [reagent.core :as reagent :refer [atom dom-node]]
             [reagent.session :as session]
             [secretary.core :as secretary :include-macros true]
-            [ajax.core :refer [GET POST ajax-request json-response-format raw-response-format url-request-format]]
-            [cljs.core.async :refer [<! chan close! put! timeout]]
+            [ajax.core :refer [ajax-request json-response-format url-request-format]]
+            [cljs.core.async :refer [<! chan put! timeout]]
             [goog.net.cookies]
             [goog.events :as events]
             [goog.history.EventType :as EventType])
@@ -26,7 +26,7 @@
 (defonce poller-instance (atom 0))
 (defonce todo-lists (atom {}))
 (defonce todo-timestamps (atom {}))
-(defonce last-timestamp (atom (if (not= (.indexOf href "?demo") -1) 0)))
+(defonce last-timestamp (atom (when (not= (.indexOf href "?demo") -1) 0)))
 (defonce sorter (atom nil))
 (defonce app-has-focus (atom true))
 
@@ -48,12 +48,13 @@
     (.setSelectionRange node pos pos)))
 
 ; http://stackoverflow.com/a/5980031/2131094
-(defn swap-elements [v i1 i2] 
+(defn swap-elements
   "Swap two elements in a vector."
+  [v i1 i2]
   (assoc v i2 (v i1) i1 (v i2)))
 
 (defn get-index-of [v k vl]
-  (first (remove nil? (map-indexed #(if (= (%2 k) vl) %1) v))))
+  (first (remove nil? (map-indexed #(when (= (%2 k) vl) %1) v))))
 
 (defn insert-at [v idx values]
   (let [[before after] (split-at idx v)]
@@ -64,16 +65,18 @@
 ;***** todo parsing *****;
 
 ; http://stackoverflow.com/a/18737013/2131094
-(defn re-pos [re s]
+(defn re-pos
   "Find all the positions in a string s that a regular expression re matches."
+  [re s]
   (let [re (js/RegExp. (.-source re) "g")]
     (loop [res {}]
       (if-let [m (.exec re s)]
         (recur (assoc res (.-index m) (first m)))
         res))))
 
-(defn split-on-todos [todo-text]
+(defn split-on-todos 
   "Split up some text by positions of TODO list markers: * [ ] "
+  [todo-text]
   (let [slice-positions (sort (conj
                                 ; find the position of all todos within the source text
                                 (vec (map #(first %) (re-pos re-todo-finder todo-text)))
@@ -82,8 +85,9 @@
     ; add zero as the initial marker if not present
     (if (= (first slice-positions) 0) slice-positions (into [0] slice-positions))))
 
-(defn parse-todo-chunk [todo-chunk index]
+(defn parse-todo-chunk
   "Parse a chunk of text into a TODO list item: * [ ] My title... "
+  [todo-chunk index]
   (let [[matched checked title details] (.exec (js/RegExp. re-todo-parser) todo-chunk)]
     (if matched
       {:matched true
@@ -96,8 +100,9 @@
        :source todo-chunk
        :index index})))
 
-(defn extract-todos [text]
+(defn extract-todos
   "Turn a chunk of text into an array of TODO list state dictionaries."
+  [text]
   (when text
     (let [slice-positions (split-on-todos text)
           chunks (partition 2 1 slice-positions)
@@ -106,13 +111,15 @@
                              chunks))]
       todo-items)))
 
-(defn transform-text-todos [todo-text-items]
+(defn transform-text-todos
   "Given a hash-map of {:filename text :filename-2 text-2}
   replace the text items with their parsed TODO list state dictionaries."
+  [todo-text-items]
   (into {} (map (fn [[fname todo-text]] [(no-extension fname) (extract-todos todo-text)]) todo-text-items)))
 
-(defn reassemble-todos [todo-items]
+(defn reassemble-todos
   "Take an array of TODO list state dictionaries and then them back into text blob."
+  [todo-items]
   (apply str (map
                #(if (% :matched)
                   (str " * [" (if (% :checked) "x" " ") "] " (% :title) "\n" (% :details))
@@ -144,10 +151,11 @@
 
 ;***** Network functions *****;
 
-(defn get-files [timestamp]
+(defn get-files
   "Ask the server for a list of text files.
   Server blocks if none since timestamp.
   Returns a dictionary of :filename to text mappings."
+  [timestamp]
   (let [c (chan)]
     (ajax-request {:uri (@server :url)
                    :method :get
@@ -158,8 +166,9 @@
                    :handler #(put! c %)})
     c))
 
-(defn update-file [fname text]
+(defn update-file
   "Ask the server to update a particular text file with text contents."
+  [fname text]
   (ajax-request {:uri (@server :url)
                  :method :post
                  :with-credentials true
@@ -171,11 +180,12 @@
                  ; TODO: handle result
                  :handler (fn [[ok result]]
                             (print "update-file result:" ok (clj->js result))
-                            (if (and ok (not (nil? result)))
+                            (when (and ok (not (nil? result)))
                               (reset! last-timestamp result)))}))
 
-(defn delete-file [fname]
+(defn delete-file
   "Ask the server to delete a single file."
+  [fname]
   ; not RESTful because PHP doesn't support DELETE parameters well
   (ajax-request {:uri (@server :url)
                  :method :post
@@ -186,11 +196,12 @@
                  :response-format (json-response-format)
                  :handler (fn [[ok result]]
                             (print "delete-file result:" ok (clj->js result))
-                            (if (and ok (not (nil? result)))
+                            (when (and ok (not (nil? result)))
                               (reset! last-timestamp result)))}))
 
-(defn long-poller [todos file-timestamps instance-id]
+(defn long-poller
   "Continuously poll the server updating the todos atom when the textfile data changes."
+  [todos file-timestamps instance-id]
   (go (loop [wait 1000]
         ; if we have fired off a new instance don't use this one
         (when (= instance-id @poller-instance)
@@ -205,7 +216,7 @@
                                          (do
                                            (js/console.log "Long-poller new timestamp.")
                                            (reset! last-timestamp (result "timestamp"))
-                                           (when (not ok)
+                                           #_ (when (not ok)
                                              ; this happens with the poller timeout so we can't use it d'oh
                                              )
                                            (let [transformed-todos (transform-text-todos (result "files"))
@@ -227,38 +238,37 @@
 
 ;***** event handlers *****;
 
-(defn checkbox-handler [todos fname todo ev]
+(defn checkbox-handler
   "When the user clicks a checkbox, update the state."
-  (let [todo-list (@todos fname)]
-    (update-file fname (reassemble-todos
-                         ((swap! todos #(-> %
-                                            (update-in [fname (todo :index) :checked] not)
-                                            (re-compute-indices fname)))
-                          fname)))))
+  [todos fname todo]
+  (update-file fname (reassemble-todos
+                       ((swap! todos #(-> %
+                                          (update-in [fname (todo :index) :checked] not)
+                                          (re-compute-indices fname)))
+                        fname))))
 
-(defn delete-item-handler [todos fname todo ev]
+(defn delete-item-handler [todos fname todo]
   (update-file fname (reassemble-todos
                          ((swap! todos #(-> %
                               (remove-item fname todo)
                               (re-compute-indices fname)))
                           fname))))
 
-(defn delete-completed-handler [todos fname ev]
+(defn delete-completed-handler [todos fname]
   (update-file fname (reassemble-todos
                          ((swap! todos #(-> %
                               (remove-completed fname)
                               (re-compute-indices fname)))
                           fname))))
 
-(defn update-item-handler [todos fname todo item-title ev]
-  (let [todo-list (@todos fname)]
-    (update-file fname (reassemble-todos
-                         ((swap! todos #(-> %
-                                            (assoc-in [fname (todo :index) :title] @item-title)
-                                            (re-compute-indices fname)))
-                          fname)))))
+(defn update-item-handler [todos fname todo item-title]
+  (update-file fname (reassemble-todos
+                       ((swap! todos #(-> %
+                                          (assoc-in [fname (todo :index) :title] @item-title)
+                                          (re-compute-indices fname)))
+                        fname))))
 
-(defn add-todo-item-handler [todos fname new-item-title add-mode ev]
+(defn add-todo-item-handler [todos fname new-item-title]
   (let [todo-list (get @todos fname)
         first-matched (get-index-of todo-list :matched true)]
     (print "first-matched" first-matched)
@@ -301,12 +311,12 @@
                         :animation 150
                         :onEnd (partial finished-sorting-handler todos filename)})))
 
-(defn add-todo-list-handler [todos new-item add-mode ev]
+(defn add-todo-list-handler [todos new-item add-mode]
   (update-file @new-item (swap! todos assoc @new-item []))
   (reset! new-item "")
   (swap! add-mode not))
 
-(defn delete-todo-list-handler [todos fname add-mode ev]
+(defn delete-todo-list-handler [todos fname _add-mode ev]
   (when (js/confirm (str "Really delete " fname " list?"))
     (swap! todos dissoc fname)
     (delete-file fname))
@@ -335,11 +345,11 @@
                                 :placeholder "Item..."
                                 :on-change #(reset! item-title (-> % .-target .-value))
                                 :on-key-down (fn [ev] (when (= (.-which ev) 13) (item-done-fn ev) (.preventDefault ev)))
-                                :on-blur (fn [ev] 
+                                :on-blur (fn [] 
                                            ; Ugh - hack
                                            (js/setTimeout #(swap! edit-mode not) 100))}])])
 
-(defn component-item-add [item-title edit-mode item-done-fn]
+(defn component-item-add [item-title _edit-mode item-done-fn]
   [(with-meta
      (fn []
        [:textarea.add-item-text {:auto-focus true
@@ -351,7 +361,7 @@
                               ; only get focus if they have just created a note
                               (let [node (dom-node this)
                                     content-length (.-length (.-value node))]
-                                (if (= 0 content-length) (get-focus this))))})])
+                                (when (= 0 content-length) (get-focus this))))})])
 
 (defn component-todo-item [todos filename todo]
   (let [edit-mode (atom false)
@@ -417,14 +427,14 @@
            (if @add-mode [:i {:class "fa fa-stack-1x fa-times fa-inverse"}] [:i {:class "fa fa-stack-1x fa-pencil fa-inverse"}])]
           (when @add-mode
             [:div#add-item-container
-             [:input {:auto-focus true :on-change #(reset! new-item (-> % .-target .-value)) :on-key-down #(if (= (.-which %) 13) (update-fn %)) :value @new-item :placeholder "List name..."}]
+             [:input {:auto-focus true :on-change #(reset! new-item (-> % .-target .-value)) :on-key-down #(when (= (.-which %) 13) (update-fn %)) :value @new-item :placeholder "List name..."}]
              [:i#add-item-done.btn {:on-click update-fn :class "fa fa-check-circle"}]])]
          [:ul {}
           (if (> (count @todos) 0)
             (doall (map-indexed (fn [idx [filename todo-list]]
                                   (let [fname (no-extension filename)]
                                     [:li.todo-link {:key filename :class (str "oddeven-" (mod idx 2))}
-                                     (if @add-mode [:i.delete-list.btn {:on-click (partial delete-todo-list-handler todos filename add-mode) :class "fa fa-minus-circle"}])
+                                     (when @add-mode [:i.delete-list.btn {:on-click (partial delete-todo-list-handler todos filename add-mode) :class "fa fa-minus-circle"}])
                                      [:span.unchecked-count (count (filter #(= (% :checked) false) todo-list))]
                                      [:span {:on-click (partial switch-to-todo fname)} fname]]))
                                 ; sort by the creation time timestamps the server has sent, defaulting to infinity (for newly created files)
@@ -443,7 +453,7 @@
 (secretary/defroute "/" []
   (session/put! :current-page (partial #'lists-page todo-lists todo-timestamps)))
 
-(secretary/defroute "/:fname" [fname]
+(secretary/defroute "/:fname" #_:clj-kondo/ignore [fname]
   (session/put! :current-page (partial #'todo-page todo-lists fname)))
 
 ;; -------------------------
