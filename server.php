@@ -1,3 +1,4 @@
+dingus
 <?php
 /**
  * Infinite looping PHP long-poller.
