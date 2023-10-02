@@ -40,5 +40,9 @@ $(SERVER): $(SERVER_FILES)
 $(IDX): src/clj/*/*.clj
 	PROD=1 lein run -m omgnata.handler/index-html > $(IDX)
 
+font-awesome/css font-awesome/fonts sortable/Sortable.min.js:
+	git submodule init
+	git submodule update
+
 clean:
 	rm -rf $(TARGETS) build
