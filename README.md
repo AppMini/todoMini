@@ -11,10 +11,6 @@ Minimal TODO list web app:
 
 Surprisingly, I could not find software meeting these criteria.
 
-### Hosted Install
-
-[Get a fully hosted todoMini](https://www.todomini.app/).
-
 ### Self-hosted Install
 
  * Download [a release](https://github.com/chr15m/omgnata/releases) or `git clone` the `gh-pages` branch.
