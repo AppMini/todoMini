@@ -54,8 +54,11 @@
                                         :pretty-print true}}
                        :min {:source-paths ["env/prod/cljs" "src/cljs"]
                              :compiler {:output-to "build/js/app.js"
+                                        :output-dir "build/js"
                                         :main "omgnata.prod"
                                         :optimizations :advanced
+                                        :pseudo-names true
+                                        :source-map "build/js/app.js.map"
                                         :pretty-print false}}}}
 
   :profiles {:dev {:repl-options {:init-ns omgnata.repl}
