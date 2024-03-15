@@ -44,5 +44,15 @@ font-awesome/css font-awesome/fonts sortable/Sortable.min.js:
 	git submodule init
 	git submodule update
 
+define DOCKER_RUN_TEMPLATE
+docker-run-on-php-$(1): build/index.html
+	cd build && docker run -p 8000:80 -it --rm --name todomini -v "$$$$PWD":/usr/src/myapp -w /usr/src/myapp php:$(2)-cli php -S 0.0.0.0:80
+endef
+
+#docker-run-on-php-7: build/index.html
+$(eval $(call DOCKER_RUN_TEMPLATE,7,7.0.33))
+#docker-run-on-php-8: build/index.html
+$(eval $(call DOCKER_RUN_TEMPLATE,8,8.2))
+
 clean:
 	rm -rf $(TARGETS) build
