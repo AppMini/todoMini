@@ -16,16 +16,17 @@
      [:meta {:name "viewport"
              :content "width=device-width, initial-scale=1"}]
      [:meta {:name "mobile-web-app-capable" :content "yes"}]
+     [:meta {:name "apple-mobile-web-app-capable" :content "yes"}]
      [:meta {:name "apple-mobile-web-app-status-bar-style" :content "black"}]
      [:title "TODO"]
      [:link {:rel "apple-touch-icon-precomposed" :sizes "192x192" :href "img/icon.png"}]
      [:link {:rel "icon" :type "image/png" :href "img/icon.png"}]
-     [:link {:rel "manifest" :href "manifest.json"}]
+     [:link {:rel "manifest" :href "manifest.json" :crossorigin "use-credentials"}]
      (include-css (if (= (env :prod) "1") "css/site.min.css" "css/site.css"))
      [:script {:type "application/javascript" :src "sortable/Sortable.min.js"}]]
-    [:body
-     mount-target
-     (include-js "js/app.js")]))
+   [:body
+    mount-target
+    (include-js "js/app.js")]))
 
 
 (defroutes routes
@@ -37,6 +38,7 @@
 
 (def app (wrap-middleware #'routes))
 
-(defn index-html []
+(defn index-html
   "output the HTML as a string"
+  []
   (print (apply str loading-page)))
